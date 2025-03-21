@@ -6,3 +6,6 @@ langgraph
 pydantic
 pydantic-settings
 langgraph-checkpoint-postgres
+IPython
+black 
+isort

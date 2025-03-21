@@ -1,0 +1,38 @@
+{
+    "python.analysis.exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/tests"
+    ],
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.extraPaths": [
+        "/Users/luxun/miniconda3/envs/servebot/lib/python3.9/site-packages/langgraph"
+    ],
+    "python.analysis.include": [
+        "/Users/luxun/workspace/ai/mine/project/ServeBot/src",
+        "/Users/luxun/miniconda3/envs/servebot/lib/python3.9/site-packages/"
+    ],
+    "python.analysis.showOnlyDirectDependenciesInAutoImport": true,
+    "python.analysis.indexing": true,
+    "python.defaultInterpreterPath": "/Users/luxun/miniconda3/envs/servebot/bin/python",
+    "python.analysis.logLevel": "Trace",
+    // 设置默认 Python 格式化工具为 black
+    "python.formatting.provider": "black",
+    // 保存时自动格式化
+    "editor.formatOnSave": true,
+    // 仅对 Python 文件启用默认格式化器
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.python"
+    },
+    // isort 自动排序 import（集成在 VS Code Python 插件中）
+    "python.sortImports.args": [
+        "--profile",
+        "black"
+    ],
+    // 保存时自动触发 isort
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "true"
+    },
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000
+}
