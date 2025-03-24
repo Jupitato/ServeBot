@@ -1,7 +1,5 @@
 import os
 
-from langchain_ollama import ChatOllama
-
 if "OPENAI_API_KEY" not in os.environ:
     os.environ["OPENAI_API_KEY"] = '123'
 
@@ -10,6 +8,7 @@ if "OLLAMA_DEBUG" not in os.environ:
 
 
 def getLLM():
+    from langchain_ollama import ChatOllama
     llm = ChatOllama(
         model="deepseek-r1:8b",
         temperature=0,
@@ -17,8 +16,16 @@ def getLLM():
     return llm
 
 
-def getEmbedding():
-    from langchain_ollama import OllamaEmbeddings
-    # 向量的维数如何设置？
-    embeddings_model = OllamaEmbeddings(model="quentinz/bge-large-zh-v1.5")
-    return embeddings_model
+def getEmbedding(provider="langchain"):
+    if provider == "langchain":
+        from langchain_ollama import OllamaEmbeddings
+        # 向量的维数如何设置？
+        embeddings_model = OllamaEmbeddings(model="quentinz/bge-large-zh-v1.5")
+        return embeddings_model
+    elif provider == "llamaindex":
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+        embeddings = HuggingFaceEmbedding(
+            model_name="BAAI/bge-m3"
+        )
+        return embeddings
+    raise RuntimeError("不支持的provider")
