@@ -18,7 +18,7 @@ class HumanInterruptAgent:
         human_response = interrupt({"question": state["to_human_question"]})
         logger.info("human_response: %s", human_response)
         return Command(
-            goto=state['goto'],
+            goto=state['interrupt_from_agent'],
             update={
                 "messages": [
                     {

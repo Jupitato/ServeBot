@@ -22,7 +22,9 @@ def query_from_vector_store(vector_store, prompt: str, metadata_filter2=None, ):
         filters = MetadataFilters(filters=filters_list)
         query_engine = index.as_query_engine(filters=filters, similarity_top_k=5)
     else:
-        query_engine = index.as_query_engine(similarity_top_k=5)
+        retriever = index.as_retriever(similarity_top_k=5)
+
+    response_retriever = retriever.retrieve(prompt)
     response = query_engine.query(prompt)
     return response
 

@@ -7,10 +7,10 @@ if "OLLAMA_DEBUG" not in os.environ:
     os.environ["OLLAMA_DEBUG"] = "1"
 
 
-def getLLM():
+def getLLM(model="deepseek-r1:8b"):
     from langchain_ollama import ChatOllama
     llm = ChatOllama(
-        model="deepseek-r1:8b",
+        model=model,
         temperature=0,
     )
     return llm

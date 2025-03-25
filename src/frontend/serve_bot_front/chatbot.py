@@ -12,7 +12,8 @@ def chatbot(user_input: str, history: list, session_id: str, interrupt_flag: boo
     """
     # 构造请求体
     payload = {
-        "messages": [{"role": "user", "content": user_input}]
+        "messages": [{"role": "user", "content": user_input}],
+        "interrupt_flag": interrupt_flag  # 来自工作流的中断
     }
 
     # 如果存在session_id则添加
@@ -57,7 +58,7 @@ def main():
         # 隐藏状态存储
         session_state = gr.State("")  # 保存session_id
         history_state = gr.State([])  # 保存对话历史
-        interrupt_state = gr.grState(False)
+        interrupt_state = gr.State(False)
         # 聊天界面
         chatbot_ui = gr.Chatbot(label="对话记录", height=500)
         msg_input = gr.Textbox(label="输入消息", placeholder="请输入需求或反馈...")
@@ -70,7 +71,7 @@ def main():
         # 事件处理
         def new_chat():
             """重置会话"""
-            return [], [], ""
+            return [], [], "", False
 
         send_btn.click(
             chatbot,
@@ -85,8 +86,8 @@ def main():
 
         msg_input.submit(
             chatbot,
-            inputs=[msg_input, history_state, session_state],
-            outputs=[chatbot_ui, history_state, session_state]
+            inputs=[msg_input, history_state, session_state, interrupt_state],
+            outputs=[chatbot_ui, history_state, session_state, interrupt_state]
         )
 
     return demo

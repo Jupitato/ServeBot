@@ -11,4 +11,4 @@ class ChatState(MessagesState):
     current_intent: str
     user_key_info: str
     to_human_question: str
-    goto: str
+    interrupt_from_agent: str

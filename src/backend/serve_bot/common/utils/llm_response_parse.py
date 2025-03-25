@@ -21,7 +21,15 @@ def extract_answer(input_str, keys=None):
         # 使用正则表达式匹配被```json包裹的JSON内容
         match = re.search(r'```json(.*?)```', cleaned, re.DOTALL)
         if not match:
-            return None if keys else {}
+            # 如果没有```json格式，直接尝试解析整个字符串
+            try:
+                data = json.loads(cleaned)
+                if keys is None:
+                    return data
+                return [data.get(key) for key in keys]
+            except json.JSONDecodeError:
+                return None if keys else {}
+
         json_str = match.group(1).strip()
 
         # 解析JSON字符串为字典

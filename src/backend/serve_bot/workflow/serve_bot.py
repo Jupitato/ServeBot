@@ -10,12 +10,13 @@ from src.backend.serve_bot.workflow.agents.business_logic_process import Busines
 from src.backend.serve_bot.workflow.agents.human_interrupt import HumanInterruptAgent
 from src.backend.serve_bot.workflow.agents.intent_recognition import IntentRecognitionAgent
 from src.backend.serve_bot.workflow.agents.key_information_extraction import KeyInformationExtractionAgent
+from src.backend.serve_bot.workflow.agents.knowledge_faq import KnowledgeFaqAgent
 from src.backend.serve_bot.workflow.agents.prompt_security import PromptSecurityAgent
 
 
 class ServeBot:
     def __init__(self, user_id: str):
-        self.llm = getLLM()
+        self.llm = getLLM(model="deepseek-r1:14b")
         self.user_id = user_id
         memory = MemorySaver()
         agents = self._init_all_agents()
@@ -46,7 +47,8 @@ class ServeBot:
             "IntentRecognitionAgent": IntentRecognitionAgent(llm=self.llm),
             "KeyInformationExtractionAgent": KeyInformationExtractionAgent(llm=self.llm),
             "BusinessLogicProcessAgent": BusinessLogicProcessAgent(llm=self.llm),
-            "HumanInterruptAgent": HumanInterruptAgent(llm=self.llm)
+            "HumanInterruptAgent": HumanInterruptAgent(llm=self.llm),
+            "KnowledgeFaqAgent": KnowledgeFaqAgent(llm=self.llm)
         }
 
     def _create_workflow(self, agents):
@@ -57,6 +59,7 @@ class ServeBot:
         workflow.add_node("KeyInformationExtractionAgent", agents["KeyInformationExtractionAgent"].run)
         workflow.add_node("BusinessLogicProcessAgent", agents["BusinessLogicProcessAgent"].run)
         workflow.add_node("HumanInterruptAgent", agents["HumanInterruptAgent"].run)
+        workflow.add_node("KnowledgeFaqAgent", agents["KnowledgeFaqAgent"].run)
         workflow.add_edge(START, "PromptSecurityAgent")
 
 

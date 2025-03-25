@@ -4,7 +4,8 @@ from typing import Literal
 
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import Command, interrupt
+from langgraph.constants import END
+from langgraph.types import Command
 
 from src.backend.serve_bot.chat_manage.chat_state import ChatState
 from src.backend.serve_bot.common.utils.llm_response_parse import extract_answer
@@ -19,24 +20,41 @@ class IntentRecognitionAgent:
     def __init__(self, llm):
         self.llm = llm
 
-    async def run(self, state: ChatState, config: RunnableConfig) -> Command[Literal["KeyInformationExtractionAgent"]]:
+    async def run(self, state: ChatState, config: RunnableConfig) -> Command[Literal["KeyInformationExtractionAgent", END]]:
         logger.info("IntentRecognitionAgent run: %s ", config["configurable"]["user_id"])
 
         try:
+            # 获取过滤后的对话历史（仅保留用户消息）
+            chat_history = [
+                msg for msg in state.get("messages", [])
+                if isinstance(msg, (HumanMessage, AIMessage))
+            ]
+            recent_history = chat_history[-(3 * 2):]  # 3轮对话（每轮user+AI）
+
             messages = [
                 SystemMessage(content=IntentRecognitionSystemPrompt),
+                *recent_history,
                 HumanMessage(content=state["prompt"])
             ]
             response = await self.llm.ainvoke(messages)
 
+            intent, intent_description, confidence = extract_answer(response.content, ["intent", "intent_description", "confidence"])
             # 存储对话记录到state
             state.setdefault("messages", []).extend([
                 *messages,
-                AIMessage(content=response.content)  # 添加AI响应
+                AIMessage(content=intent_description)  # 添加AI响应
             ])
-
-            intent, confidence = extract_answer(response.content, ["intent", "confidence"])
-            return Command(goto="KeyInformationExtractionAgent", update={"current_intent": intent, "messages": state["messages"]})
+            update_state = {"current_intent": intent, "messages": state["messages"]}
+            if intent == "out_of_scope":
+                return Command(goto=END, update=update_state)
+            elif intent == "unclear":
+                update_state["to_human_question"] = intent_description
+                update_state["interrupt_from_agent"] = "IntentRecognitionAgent"
+                return Command(goto="HumanInterruptAgent", update=update_state)
+            elif intent == "faq":
+                return Command(goto="KnowledgeFaqAgent", update=update_state)
+            else:
+                return Command(goto="KeyInformationExtractionAgent", update=update_state)
         except BaseException:
             traceback_info = traceback.format_exc()
             logger.error(traceback_info)
@@ -79,8 +97,7 @@ IntentRecognitionSystemPrompt = """你是客服机器人的「意图识别模块
     * 物流跟踪（logistics_tracking）：用户想查询包裹物流进度、快递信息等；
     * 售后申请（after_sale）：用户想申请退货、退款、维修等；
     * 投诉与反馈（complaint_feedback）：用户想进行投诉、建议或其他服务意见；
-    * 支付与发票（payment_invoice）：用户咨询支付方式、发票申请或报销事宜；
-    * FAQ常见问题（faq）：用户询问常见流程、政策、规则类问题，例如运费规则、优惠券使用、会员积分等；
+    * FAQ常见问题（faq）：用户询问常见流程、政策、规则类问题，例如运费规则、支付方式、优惠券使用、会员积分等；
     * 业务外或无关（out_of_scope）：用户提出与电商客服完全无关的问题（如“美国有多大？”），或者无法匹配在上述意图中的任何一类。
 
 3、不确定或信息不足时的处理：
@@ -89,16 +106,18 @@ IntentRecognitionSystemPrompt = """你是客服机器人的「意图识别模块
 
 4、输出格式：
 
-    * 将识别到的意图与置信度等信息以可供解析的结构化JSON形式输出；
+    * 将识别到的意图标记、意图描述、置信度等信息以可供解析的结构化JSON形式输出；
         JSON形式：
         {
             "intent": "faq",
+            "intent_description": "用户想咨询FAQ常见问题"
             "confidence": 0.92
         }
 
     * 若意图处于不确定状态，或属于业务外范围，则分别设置相应字段，例如：
         {
             "intent": "out_of_scope",
+            "intent_description": "用户的问题超出了我能处理的范围了"
             "confidence": 0.88
         }
 
@@ -106,19 +125,19 @@ IntentRecognitionSystemPrompt = """你是客服机器人的「意图识别模块
 
     * 示例1
     用户输入：「请问退货运费谁出？」
-    输出：{"intent":"faq", "confidence":0.95}
+    输出：{"intent":"faq", "intent_description": "用户想咨询FAQ常见问题", "confidence":0.95}
 
     * 示例2
     用户输入：「帮我查一下订单20230322-XYZ的物流进度」
-    输出：{"intent":"logistics_tracking", "confidence":0.93}
+    输出：{"intent":"logistics_tracking", "intent_description": "用户想查询物流信息", "confidence":0.93}
 
     * 示例3
     用户输入：「美国有多大？」
-    输出：{"intent":"out_of_scope", "confidence":0.90}
+    输出：{"intent":"out_of_scope", "intent_description": "用户的问题超出了我能处理的范围", "confidence":0.90}
 
     * 示例4
     用户输入：「我想咨询一下」
-    输出：{"intent":"unclear", "confidence":0.40}（提示需要澄清）
+    输出：{"intent":"unclear", "intent_description": "用户的问题不是很清楚，需要澄清下","confidence":0.40}（提示需要澄清）
 
 6、语言风格与逻辑：
     * 你的答案不需要向用户直接展示，只需内部返回意图信息；

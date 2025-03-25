@@ -4,7 +4,7 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 # 确保日志目录存在
-LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../temp/logs"))
+LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../tmp/logs"))
 os.makedirs(LOG_DIR, exist_ok=True)
 
 LOG_FILE = os.path.join(LOG_DIR, "app.log")

@@ -20,7 +20,7 @@ class ChatRequest(BaseModel):
         description="会话ID（首次请求不需要传）"
     )
     messages: list = Field(..., min_length=1, description="用户输入的消息内容")
-    interrupt_flag: bool = Field(
+    interrupt_flag: Union[bool, None] = Field(
         default=None,
         description="和前端交互判断是回复中断还是新的"
     )
