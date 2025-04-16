@@ -31,6 +31,7 @@ sessions: Dict[str, ServeBot] = {}
 
 @chat_router.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    session_id = None
     try:
         prompt = request.messages[-1]['content']
         # 获取或创建会话
@@ -60,7 +61,13 @@ async def chat_endpoint(request: ChatRequest):
                                         )
 
         # 所有的任务结果状态统一从state获取
-        agent_state = await bot.graph.aget_state(config=bot.graph.config)
+        config = bot.graph.config
+        if config is None:
+            # 创建默认的 RunnableConfig 配置
+            from langchain_core.runnables import RunnableConfig
+            config = RunnableConfig()
+        
+        agent_state = await bot.graph.aget_state(config=config)
         if agent_state.tasks:
             reply = agent_state.tasks[0].interrupts[0].value["question"]
             interrupt_flag = True
@@ -78,6 +85,8 @@ async def chat_endpoint(request: ChatRequest):
         print(e)
         raise HTTPException(status_code=400, detail=f"无效的会话ID: {request.session_id}")
     except Exception as e:
-        sessions.pop(session_id, None)  # 清理异常会话
+        # 仅在session_id存在时才清理会话
+        if session_id in sessions:  # 确保session_id已定义且在sessions中存在
+            sessions.pop(session_id, None)  # 清理异常会话
         print(e)
         raise HTTPException(status_code=500, detail=str(e))

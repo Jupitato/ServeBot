@@ -2,6 +2,7 @@ langchain
 langchain-ollama
 langchain_experimental
 langchain_community
+langchain-deepseek
 langgraph
 pydantic
 pydantic-settings
@@ -18,3 +19,6 @@ llama-index-embeddings-huggingface
 llama-index-retrievers-bm25
 llama-index-llms-langchain
 pymupdf
+websockets
+vllm
+python-dotenv

@@ -1,0 +1,12 @@
+// {
+//     "typeCheckingMode": "basic",
+//     "reportShadowedImports": "none",  // 默认关闭全局提示
+  
+//     "overrides": [
+//       {
+//         "files": ["src/**"],
+//         "reportShadowedImports": "warning"  // 只对这个路径开启警告
+//       }
+//     ]
+//   }
+  
