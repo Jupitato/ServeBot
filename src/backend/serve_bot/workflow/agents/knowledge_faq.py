@@ -30,4 +30,4 @@ class KnowledgeFaqAgent:
             return Command(goto=END, update={"messages": state['messages']})
         except BaseException as e:
             traceback_info = traceback.format_exc()
-            logger(traceback_info)
+            logger.error(traceback_info)

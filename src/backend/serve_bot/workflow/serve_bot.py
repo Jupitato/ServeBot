@@ -29,14 +29,14 @@ class ServeBot:
         return self._create_workflow(agents)
 
     async def run_chat(self, task_id: str, prompt: str):
-        self.task_id = task_id
+        # self.task_id = task_id
         config = {
             "configurable": {
-                "thread_id": self.task_id,
+                "thread_id": task_id,
                 "user_id": self.user_id
             }
         }
-        self.graph.config = config
+        #self.graph.config = config
 
         result = await self.graph.ainvoke({"prompt": prompt}, config=config)
         return result

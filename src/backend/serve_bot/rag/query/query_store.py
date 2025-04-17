@@ -11,20 +11,21 @@ from src.backend.serve_bot.rag.context import MyStorageContext, init_rag_setting
 logger = logging.getLogger(__name__)
 
 
-def query_from_vector_store(vector_store, prompt: str, metadata_filter2=None, ):
+def query_from_vector_store(vector_store, prompt: str, metadata_filter=None, ):
     index = VectorStoreIndex.from_vector_store(vector_store)
     # Metadata过滤，精确匹配相关文档，可以增加用户部门权限等
-    if metadata_filter2:
+    if metadata_filter:
         filters_list = [
             ExactMatchFilter(key=k, value=v)
-            for k, v in metadata_filter2.items()
+            for k, v in metadata_filter.items()
         ]
         filters = MetadataFilters(filters=filters_list)
         query_engine = index.as_query_engine(filters=filters, similarity_top_k=5)
     else:
-        retriever = index.as_retriever(similarity_top_k=5)
+        query_engine = index.as_query_engine(similarity_top_k=5)
+        # retriever = index.as_retriever(similarity_top_k=5)
 
-    response_retriever = retriever.retrieve(prompt)
+    # response_retriever = retriever.retrieve(prompt)
     response = query_engine.query(prompt)
     return response
 

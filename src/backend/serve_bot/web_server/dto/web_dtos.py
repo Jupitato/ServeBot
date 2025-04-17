@@ -3,7 +3,7 @@ from typing import Union
 from pydantic import BaseModel, Field
 
 
-class ChatRequest(BaseModel):
+class ChatRequestMessage(BaseModel):
     user_id: Union[str, None] = Field(default=None, description="用户ID")
     content: Union[str, None] = Field(default=None, description="用户输入的消息内容")
     interrupt_flag: Union[bool, None] = Field(

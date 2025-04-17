@@ -5,9 +5,11 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 from fastapi import APIRouter
+from langgraph.types import Command
 from starlette.websockets import WebSocketDisconnect, WebSocket
 
-from src.backend.serve_bot.web_server.dto.web_dtos import ChatRequest
+from src.backend.serve_bot.web_server.dto.web_dtos import ChatRequestMessage
+from src.backend.serve_bot.workflow.serve_bot import ServeBot
 
 chat2_router = APIRouter()
 
@@ -16,6 +18,9 @@ active_connections: Dict[str, WebSocket] = {}
 
 # 模拟消息历史记录
 chat_history: Dict[str, List[Dict[str, Any]]] = {}
+
+bot = ServeBot(user_id="luxun")
+
 
 
 def create_welcome_message():
@@ -58,7 +63,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         while True:
             data = await websocket.receive_text()
             # 使用 ChatRequest DTO 反序列化消息数据
-            chat_request = ChatRequest.model_validate_json(data)
+            chat_request = ChatRequestMessage.model_validate_json(data)
 
             # 生成统一的消息ID
             message_id = str(uuid.uuid4())
@@ -75,13 +80,40 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             # 立即发送用户消息回前端
             await websocket.send_text(json.dumps(user_message))
 
-            # AI回复（使用相同对话ID）
+            config = {
+                "configurable": {
+                    "thread_id": client_id,
+                    "user_id": "luxun"
+                }
+            }
+
+            if chat_request.interrupt_flag:
+                await bot.graph.ainvoke(
+                    Command(resume=user_message["content"]),
+                    config=config
+                )
+            else:
+                # 新任务
+                await bot.graph.ainvoke({"prompt": user_message["content"]},
+                                        config=config
+                                        )
+
+            agent_state = await bot.graph.aget_state(config=config)
+            if agent_state.tasks:
+                reply = agent_state.tasks[0].interrupts[0].value["question"]
+                interrupt_flag = True
+            else:
+                # 消息列表中的最后一条消息应该是机器人最后一次回复
+                reply = agent_state.values["messages"][-1].content
+                interrupt_flag = False
+
+            # AI回复
             ai_response = {
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
-                "content": f"收到：{chat_request.content}",
+                "content": reply,
                 "timestamp": datetime.now().isoformat(),
-                "interrupt_flag": False 
+                "interrupt_flag": interrupt_flag
             }
             chat_history[client_id].append(ai_response)
             await websocket.send_text(json.dumps(ai_response))
