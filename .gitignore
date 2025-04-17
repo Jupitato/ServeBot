@@ -1,5 +1,6 @@
 **/.tmp/
-/.idea
+**/.idea
 __pycache__/
 **/__pycache__/
 **/.env
+/src/frontend/.idea/

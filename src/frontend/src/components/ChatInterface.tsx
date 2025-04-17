@@ -8,6 +8,7 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp: string;
+    interrupt_flag: boolean
 }
 
 // 新增会话接口
@@ -57,11 +58,11 @@ export default function ChatInterface() {
             title: `新对话 ${new Date().toLocaleString()}`,
             createdAt: new Date().toISOString()
         };
-        
+
         setConversations(prev => [...prev, newConversation]);
         setClientId(newClientId);
         setMessages([]); // 清空当前消息
-        
+
         // 实际环境中应该调用API保存新会话
         // saveConversation(userId, newConversation);
     };
@@ -69,47 +70,35 @@ export default function ChatInterface() {
     // 切换到指定会话
     const switchConversation = (conversationId: string) => {
         if (clientId === conversationId) return;
-        
+
         // 关闭当前WebSocket连接
         if (wsRef.current) {
             wsRef.current.close();
         }
-        
+
         setClientId(conversationId);
         setMessages([]); // 清空当前消息，新的消息会通过WebSocket加载
     };
-    
+
     // 建立WebSocket连接（只在clientId变化时连接）
     useEffect(() => {
         if (!clientId) return;
-    
+
         const connectWebSocket = () => {
             try {
                 const ws = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
-    
+
                 ws.onopen = () => {
                     console.log('WebSocket连接已建立');
                     setIsConnected(true);
                 };
-    
+
                 ws.onmessage = (event) => {
                     try {
                         const message = JSON.parse(event.data);
                         console.log('收到消息:', message);
-                        
+
                         setMessages((prev) => {
-                            // 如果是用户消息，检查是否需要替换临时消息
-                            if (message.role === 'user') {
-                                // 查找是否有以temp-开头的临时消息
-                                const tempIndex = prev.findIndex(m => m.id.startsWith('temp-'));
-                                if (tempIndex !== -1) {
-                                    // 替换临时消息
-                                    const newMessages = [...prev];
-                                    newMessages[tempIndex] = message;
-                                    return newMessages;
-                                }
-                            }
-                            
                             // 如果不是替换临时消息的情况，检查是否已存在相同ID的消息
                             if (!prev.some(m => m.id === message.id)) {
                                 return [...prev, message];
@@ -120,7 +109,7 @@ export default function ChatInterface() {
                         console.error('消息解析错误:', error);
                     }
                 };
-    
+
                 ws.onclose = (event) => {
                     console.log('WebSocket连接已关闭', event.code, event.reason);
                     setIsConnected(false);
@@ -128,7 +117,7 @@ export default function ChatInterface() {
                         setTimeout(connectWebSocket, 3000);
                     }
                 };
-    
+
                 ws.onerror = (error) => {
                     console.error('WebSocket错误:', error);
                     // 添加更详细的错误日志
@@ -140,7 +129,7 @@ export default function ChatInterface() {
                     setIsConnected(false);
                     ws.close();
                 };
-    
+
                 wsRef.current = ws;
             } catch (error) {
                 console.error('WebSocket初始化错误:', error);
@@ -148,9 +137,9 @@ export default function ChatInterface() {
                 setTimeout(connectWebSocket, 3000);
             }
         };
-    
+
         connectWebSocket();
-    
+
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
@@ -165,32 +154,20 @@ export default function ChatInterface() {
 
     const sendMessage = () => {
         if (!input.trim() || !isConnected || !clientId) return;
-    
-        // 生成临时ID
-        const tempId = `temp-${Date.now()}`;
-        // 创建临时用户消息
-        const tempUserMessage: Message = {
-            id: tempId,
-            role: 'user',
-            content: input,
-            timestamp: new Date().toISOString()
-        };
-    
-        // 立即显示临时消息
-        setMessages(prev => [...prev, tempUserMessage]);
-    
+
         try {
+            const latestInterruptFlag = messages.length > 0
+                ? messages[messages.length - 1].interrupt_flag
+                : null;
             // 发送消息到服务端，使用与后端ChatRequest DTO匹配的格式
             wsRef.current?.send(JSON.stringify({
                 user_id: userId,
-                message: input,
-                interrupt_flag: false
+                content: input,
+                interrupt_flag: latestInterruptFlag
             }));
             setInput('');
         } catch (error) {
             console.error('消息发送失败:', error);
-            // 发送失败时移除临时消息
-            setMessages(prev => prev.filter(m => m.id !== tempId));
         }
     };
 
@@ -204,13 +181,13 @@ export default function ChatInterface() {
     // 修改clearHistory函数，支持删除会话
     const clearHistory = async () => {
         if (!clientId) return;
-        
+
         try {
             await fetch(`http://localhost:8000/api/history/${clientId}`, {
                 method: 'DELETE',
             });
             setMessages([]);
-            
+
             // 可选：从会话列表中移除该会话
             // setConversations(prev => prev.filter(conv => conv.id !== clientId));
             // setClientId(conversations.length > 0 ? conversations[0].id : null);
@@ -226,9 +203,9 @@ export default function ChatInterface() {
             // await fetch(`/api/users/${userId}/conversations/${conversationId}`, {
             //     method: 'DELETE',
             // });
-            
+
             setConversations(prev => prev.filter(conv => conv.id !== conversationId));
-            
+
             // 如果删除的是当前会话，切换到其他会话或清空
             if (clientId === conversationId) {
                 const remainingConversations = conversations.filter(conv => conv.id !== conversationId);
@@ -281,7 +258,7 @@ export default function ChatInterface() {
                     ) : (
                         <div className="space-y-1">
                             {conversations.map(conv => (
-                                <div 
+                                <div
                                     key={conv.id}
                                     className={`flex justify-between items-center p-2 rounded cursor-pointer ${
                                         clientId === conv.id ? 'bg-blue-100' : 'hover:bg-gray-200'
@@ -289,7 +266,7 @@ export default function ChatInterface() {
                                     onClick={() => switchConversation(conv.id)}
                                 >
                                     <div className="truncate text-sm">{conv.title}</div>
-                                    <button 
+                                    <button
                                         className="text-gray-400 hover:text-red-500"
                                         onClick={(e) => {
                                             e.stopPropagation();
