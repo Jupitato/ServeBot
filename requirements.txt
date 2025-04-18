@@ -22,3 +22,5 @@ pymupdf
 websockets
 vllm
 python-dotenv
+pyjwt 
+pydantic[email]

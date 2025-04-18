@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import uuid
+import logging
 from typing import Dict, Union
 
 from fastapi import APIRouter, HTTPException
@@ -9,17 +9,20 @@ from pydantic import BaseModel, Field
 
 from src.backend.serve_bot.workflow.serve_bot import ServeBot
 
+logger = logging.getLogger(__name__)
+
+
 chat_router = APIRouter()
 
 
 # 定义请求体数据模型
-class ChatRequest(BaseModel):
-    session_id: Union[str, None] = Field(
+class ChatMessageRequest(BaseModel):
+    chat_id: str = Field(
         default=None,
-        # alias="sessionId",  # 支持前端使用camelCase
-        description="会话ID（首次请求不需要传）"
+        alias="chatId",  # 支持前端使用camelCase
+        description="对话ID"
     )
-    messages: list = Field(..., min_length=1, description="用户输入的消息内容")
+    message: str = Field(description="用户输入的消息内容")
     interrupt_flag: Union[bool, None] = Field(
         default=None,
         description="和前端交互判断是回复中断还是新的"
@@ -28,44 +31,31 @@ class ChatRequest(BaseModel):
 
 sessions: Dict[str, ServeBot] = {}
 
+bot = ServeBot(user_id="luxun")
 
 @chat_router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(chatMessageRequest: ChatMessageRequest):
     session_id = None
     try:
-        prompt = request.messages[-1]['content']
-        # 获取或创建会话
-        if not request.session_id or request.session_id not in sessions:
-            # 新会话初始化
-            session_id = str(uuid.uuid4())
-            bot = ServeBot(user_id="luxun")
-            sessions[session_id] = bot
-            # 执行任务
-            await bot.run_chat(task_id=session_id, prompt=prompt)
+        user_message = chatMessageRequest.message
+        chat_id = chatMessageRequest.chat_id
+        config = {
+            "configurable": {
+                "thread_id": chat_id,
+                "user_id": "luxun"
+            }
+        }
 
+        if chatMessageRequest.interrupt_flag:
+            await bot.graph.ainvoke(
+                Command(resume=user_message),
+                config=config
+            )
         else:
-            # 恢复已有会话
-            session_id = request.session_id
-            bot = sessions[session_id]
-            config = bot.graph.config
-            # 中断中恢复
-            if request.interrupt_flag:
-                await bot.graph.ainvoke(
-                    Command(resume=request.messages[-1]['content']),
-                    config=config
-                )
-            else:
-                # 新任务
-                await bot.graph.ainvoke({"prompt": prompt},
-                                        config=config
-                                        )
-
-        # 所有的任务结果状态统一从state获取
-        config = bot.graph.config
-        if config is None:
-            # 创建默认的 RunnableConfig 配置
-            from langchain_core.runnables import RunnableConfig
-            config = RunnableConfig()
+            # 新任务
+            await bot.graph.ainvoke({"prompt": user_message},
+                                    config=config
+                                    )
         
         agent_state = await bot.graph.aget_state(config=config)
         if agent_state.tasks:
@@ -76,17 +66,10 @@ async def chat_endpoint(request: ChatRequest):
             reply = agent_state.values["messages"][-1].content
             interrupt_flag = False
         return {
-            "session_id": session_id,
-            "reply": reply.replace("<think>", "[思考开始]").replace("</think>", "[思考结束]"),
+            "response_msg": reply.replace("<think>", "[思考开始]").replace("</think>", "[思考结束]"),
             "interrupt_flag": interrupt_flag
         }
 
-    except KeyError as e:
-        print(e)
-        raise HTTPException(status_code=400, detail=f"无效的会话ID: {request.session_id}")
     except Exception as e:
-        # 仅在session_id存在时才清理会话
-        if session_id in sessions:  # 确保session_id已定义且在sessions中存在
-            sessions.pop(session_id, None)  # 清理异常会话
-        print(e)
+        logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))

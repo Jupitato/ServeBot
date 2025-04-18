@@ -1,14 +1,14 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
-from langchain.globals import set_debug, set_verbose
 from fastapi.middleware.cors import CORSMiddleware
+from langchain.globals import set_debug, set_verbose
 
 from src.backend.serve_bot.common.logging import init_logging
 from src.backend.serve_bot.rag.context import init_rag_settings
+from src.backend.serve_bot.web_server.api.endpoint.auth import auth_router  # 新增
 from src.backend.serve_bot.web_server.api.endpoint.chat import chat_router
 from src.backend.serve_bot.web_server.api.endpoint.chat2 import chat2_router
 
@@ -30,8 +30,9 @@ async def lifespan(app: FastAPI):
 set_debug(True)
 set_verbose(True)
 app = FastAPI(lifespan=lifespan)
-app.include_router(chat_router, tags=["chat"])
+app.include_router(chat_router, tags=["chat"], prefix="/api")
 app.include_router(chat2_router, tags=["chat2"])
+app.include_router(auth_router, tags=["auth"], prefix="/api")  # 新增
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # 通过mitmproxy代理拦截流量
 # os.environ["HTTP_PROXY"] = "http://localhost:8080"
