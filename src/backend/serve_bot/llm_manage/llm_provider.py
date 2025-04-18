@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
+from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 
 # 加载 .env 文件中的环境变量
@@ -18,9 +19,9 @@ if "OLLAMA_DEBUG" not in os.environ:
 
 
 def getLLM(model="deepseek-r1:8b"):
-    # llm = ChatOllama(
-    #     model=model,
-    #     temperature=0)
+    llm = ChatOllama(
+        model=model,
+        temperature=0)
 
 
     # from langchain_community.llms import VLLM
@@ -32,15 +33,15 @@ def getLLM(model="deepseek-r1:8b"):
     #     top_p=0.95,
     #     temperature=0.8,
     # )
-    llm = ChatDeepSeek(
-        model="deepseek-chat",
-        temperature=0,
-        max_tokens=512,
-        timeout=None,
-        max_retries=2,
-        api_key=SecretStr(os.getenv("DEEPSEEK_API_KEY", "")) if os.getenv("DEEPSEEK_API_KEY") else SecretStr(""),
-        # other params...
-    )
+    # llm = ChatDeepSeek(
+    #     model="deepseek-chat",
+    #     temperature=0,
+    #     max_tokens=512,
+    #     timeout=None,
+    #     max_retries=2,
+    #     api_key=SecretStr(os.getenv("DEEPSEEK_API_KEY", "")) if os.getenv("DEEPSEEK_API_KEY") else SecretStr(""),
+    #     # other params...
+    # )
     return llm
 
 
